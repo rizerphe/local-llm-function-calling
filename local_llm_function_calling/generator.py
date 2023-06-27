@@ -7,6 +7,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from .prompter import CompletionModelPrompter, FunctionCall, FunctionType, TextPrompter
 
 
+class SequenceTooLong(Exception):
+    """The sequence is too long to generate"""
+
+
 class Generator:
     """Generate the function call based on the schema"""
 
@@ -48,7 +52,9 @@ class Generator:
             str: The tokens sorted by their likelihood
         """
         inputs = self.tokenizer(prompt, return_tensors="pt")
-        gen_tokens = model.generate(
+        if inputs["input_ids"].shape[1] >= self.model.config.n_positions:
+            raise SequenceTooLong()
+        gen_tokens = self.model.generate(
             **inputs,
             output_scores=True,
             return_dict_in_generate=True,
@@ -121,15 +127,24 @@ class Generator:
             return self._choose_function(prompt)
         return function_call
 
-    def generate_arguments(self, prompt: str, function_call: str) -> str:
+    def generate_arguments(
+        self,
+        prompt: str,
+        function_call: str,
+        max_new_tokens: int | None = None,
+        max_length: int | None = None,
+    ) -> str:
         """Generate the arguments for the function
 
         Args:
             prompt (str): The prompt to use
             function_call (str): The function to call
+            max_new_tokens (int | None): The maximum number of tokens to generate
+            max_length (int | None): The maximum length of the generated sequence
 
         Returns:
-            str: The arguments for the function
+            str: The arguments for the function, as a JSON string
+                (may not be complete)
         """
         config = json_schema_enforcer.StyleConfig(True, 4, True, 0, 0)
         parser = json_schema_enforcer.parser_for_schema(
@@ -145,16 +160,31 @@ class Generator:
             raise ValueError("No parser found for arguments")
         prefix = self.prompter.prompt(prompt, self.functions, function_call)
         generated = ""
+        generated_tokens = 0
         while True:
-            for token in self.get_sorted_tokens(prefix + generated):
-                validated = parser.validate(generated + token, style_config=config)
-                if validated.valid:
-                    if validated.end_index is not None:
-                        return (generated + token)[: validated.end_index]
-                    generated += token
-                    break
+            try:
+                for token in self.get_sorted_tokens(prefix + generated):
+                    validated = parser.validate(generated + token, style_config=config)
+                    if validated.valid:
+                        if validated.end_index is not None:
+                            return (generated + token)[: validated.end_index]
+                        generated += token
+                        break
+            except SequenceTooLong:
+                return generated
+            generated_tokens += 1
+            if max_new_tokens is not None and generated_tokens >= max_new_tokens:
+                return generated
+            if max_length is not None and len(generated) >= max_length:
+                return generated
 
-    def generate(self, prompt: str, function_call: str | None = None) -> FunctionCall:
+    def generate(
+        self,
+        prompt: str,
+        function_call: str | None = None,
+        max_length: int | None = None,
+        max_new_tokens: int | None = None,
+    ) -> FunctionCall:
         """Generate the function call
 
         Args:
@@ -163,5 +193,7 @@ class Generator:
                 Will be generated if not provided.
         """
         function_name = self.choose_function(prompt, function_call)
-        arguments = self.generate_arguments(prompt, function_name)
+        arguments = self.generate_arguments(
+            prompt, function_name, max_new_tokens, max_length
+        )
         return {"name": function_name, "parameters": arguments}

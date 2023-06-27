@@ -38,6 +38,7 @@ functions = [
                 "location": {
                     "type": "string",
                     "description": "The city and state, e.g. San Francisco, CA",
+                    "maxLength": 20,
                 },
                 "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
             },
@@ -52,7 +53,6 @@ generator = Generator(functions, "gpt2")
 # Generate text using a prompt
 function_call = generator.generate("What is the weather like today in Brooklyn?")
 print(function_call)
-
 ```
 
 ## Extending and Customizing

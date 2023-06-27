@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "local-llm-function-calling"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["rizerphe <44440399+rizerphe@users.noreply.github.com>"]
 readme = "README.md"
