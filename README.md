@@ -55,6 +55,26 @@ function_call = generator.generate("What is the weather like today in Brooklyn?"
 print(function_call)
 ```
 
+## Custom constraints
+
+You don't have to use my prompting methods; you can craft your own prompts and your own constraints, and still benefit from the constrained generation:
+
+```python
+from local_llm_function_calling import Constrainer
+
+# Define your own constraint
+# (you can also use local_llm_function_calling.JsonSchemaConstraint)
+def lowercase_sentence_constraint(text: str):
+    # Has to return (is_valid, is_complete)
+    return [text.islower(), text.endswith(".")]
+
+# Create the constrainer
+constrainer = Constrainer("gpt2")
+
+# Generate your text
+generated = constrainer.generate("Prefix.\n", lowercase_sentence_constraint, max_len=10)
+```
+
 ## Extending and Customizing
 
 To extend or customize the prompt structure, you can subclass the `TextPrompter` class. This allows you to modify the prompt generation process according to your specific requirements.

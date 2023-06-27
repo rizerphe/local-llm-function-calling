@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "local-llm-function-calling"
-version = "0.1.1"
+version = "0.1.2"
 description = ""
 authors = ["rizerphe <44440399+rizerphe@users.noreply.github.com>"]
 readme = "README.md"
@@ -9,7 +9,8 @@ packages = [{include = "local_llm_function_calling"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 transformers = "^4.30.2"
-json-schema-enforcer = "^0.1.0"
+json-schema-enforcer = "^0.1.2"
+torch = "^2.0.1"
 
 
 [build-system]
