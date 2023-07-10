@@ -1,5 +1,7 @@
 # Local LLM function calling
 
+[![Documentation Status](https://readthedocs.org/projects/local-llm-function-calling/badge/?version=latest)](https://local-llm-function-calling.readthedocs.io/en/latest/?badge=latest) [![PyPI version](https://badge.fury.io/py/local-llm-function-calling.svg)](https://badge.fury.io/py/local-llm-function-calling)
+
 ## Overview
 
 The `local-llm-function-calling` project is designed to constrain the generation of Hugging Face text generation models by enforcing a JSON schema and facilitating the formulation of prompts for function calls, similar to OpenAI's [function calling](https://openai.com/blog/function-calling-and-other-api-updates) feature, but actually enforcing the schema unlike OpenAI.
