@@ -11,6 +11,7 @@ class FunctionParameters(TypedDict):
 
     type: Literal["object"]
     properties: dict[str, JsonType]
+    required: NotRequired[list[str]]
 
 
 class FunctionType(TypedDict):
