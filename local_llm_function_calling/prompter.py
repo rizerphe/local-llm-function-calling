@@ -1,7 +1,7 @@
 """Prompter protocol for function calling with open source models"""
 
 import json
-from typing import Literal, NotRequired, Protocol, TypedDict
+from typing import Literal, NotRequired, Protocol, TypeVar, TypedDict
 
 JsonType = str | int | float | bool | None | list["JsonType"] | dict[str, "JsonType"]
 
@@ -28,7 +28,10 @@ class FunctionCall(TypedDict):
     parameters: JsonType
 
 
-class TextPrompter(Protocol):
+PrefixType_co = TypeVar("PrefixType_co", covariant=True)
+
+
+class TextPrompter(Protocol[PrefixType_co]):
     """Prompter protocol for function calling with open source models"""
 
     def prompt(
@@ -36,7 +39,7 @@ class TextPrompter(Protocol):
         prompt: str,
         functions: list[FunctionType],
         function_to_call: str | None = None,
-    ) -> str:
+    ) -> PrefixType_co:
         """Prompt the user for input
 
         If function_to_call is None, then the prompt's aim should be to select
@@ -45,7 +48,7 @@ class TextPrompter(Protocol):
         function.
 
         Args:
-            prompt (str): The prompt for the AI
+            prompt (str): The natural language part of the prompt
             functions (list[FunctionType]): The functions to choose from
             function_to_call (str | None): The function to call.
                 When None, the prompt should be to select the function to call.
@@ -57,7 +60,14 @@ class CompletionModelPrompter:
     """Basic text prompter"""
 
     def prompt_for_function(self, function: FunctionType) -> str:
-        """Generate the prompt section for a function"""
+        """Generate the prompt section for a function
+
+        Args:
+            function (FunctionType): The function to generate the prompt for
+
+        Returns:
+            str: The prompt section for the function
+        """
         header = (
             f"{function['name']} - {function['description']}"
             if "description" in function
@@ -68,22 +78,45 @@ class CompletionModelPrompter:
         return f"{header}\n{packed_schema}"
 
     def prompt_for_functions(self, functions: list[FunctionType]) -> str:
+        """Generate the prompt section for a list of functions
+
+        Args:
+            functions (list[FunctionType]): The functions to generate the prompt for
+
+        Returns:
+            str: The prompt section for the functions
+        """
         return "\n\n".join(
             [self.prompt_for_function(function) for function in functions]
         )
 
     @property
     def head(self) -> str:
-        """The head of the prompt"""
+        """The head of the prompt
+
+        Returns:
+            str: The head of the prompt
+        """
         return "\n\nAvailable functions:\n"
 
     @property
     def call_header(self) -> str:
-        """The header for the function call"""
+        """The header for the function call
+
+        Returns:
+            str: The header for the function call
+        """
         return "\n\nFunction call: "
 
     def function_call(self, function_to_call: str | None = None) -> str:
-        """Create a function call prompt"""
+        """Create a function call prompt
+
+        Args:
+            function_to_call (str | None): The function to call.
+
+        Returns:
+            str: The function call prompt
+        """
         return self.call_header + (
             f"{function_to_call}\n```json\n" if function_to_call else ""
         )
@@ -94,7 +127,16 @@ class CompletionModelPrompter:
         functions: list[FunctionType],
         function_to_call: str | None = None,
     ) -> str:
-        """Create a function call prompt"""
+        """Create a function call prompt
+
+        Args:
+            prompt (str): The natural language part of the prompt
+            functions (list[FunctionType]): The functions to choose from
+            function_to_call (str | None): The function to call.
+
+        Returns:
+            str: The function call prompt
+        """
         available_functions = self.prompt_for_functions(functions)
         return (
             prompt
@@ -110,7 +152,11 @@ class InstructModelPrompter(CompletionModelPrompter):
 
     @property
     def head(self) -> str:
-        """The head of the prompt"""
+        """The head of the prompt
+
+        Returns:
+            str: The head of the prompt
+        """
         return (
             "Your task is to call a function when needed. "
             "You will be provided with a list of functions. "
@@ -123,7 +169,16 @@ class InstructModelPrompter(CompletionModelPrompter):
         functions: list[FunctionType],
         function_to_call: str | None = None,
     ) -> str:
-        """Create a function call prompt"""
+        """Create a function call prompt
+
+        Args:
+            prompt (str): The natural language part of the prompt
+            functions (list[FunctionType]): The functions to choose from
+            function_to_call (str | None): The function to call.
+
+        Returns:
+            str: The function call prompt
+        """
         available_functions = self.prompt_for_functions(functions)
         return (
             self.head

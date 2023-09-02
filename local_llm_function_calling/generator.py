@@ -1,33 +1,68 @@
 """A generator for the responses to a function call"""
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from __future__ import annotations
+from typing import Generic, TYPE_CHECKING, TypeVar
 
 from .constrainer import Constrainer, JsonSchemaConstraint
-from .prompter import CompletionModelPrompter, FunctionCall, FunctionType, TextPrompter
+from .model.huggingface import HuggingfaceModel
+
+if TYPE_CHECKING:
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from .model import Model
+    from .prompter import FunctionCall, FunctionType, TextPrompter
+
+PrefixType = TypeVar("PrefixType")
 
 
-class Generator:
+class Generator(Generic[PrefixType]):
     """Generate the function call based on the schema"""
 
     def __init__(
         self,
         functions: list[FunctionType],
-        model: AutoModelForCausalLM | str,
-        tokenizer: AutoTokenizer | None = None,
-        prompter: TextPrompter | None = None,
-    ):
+        model: Model[PrefixType],
+        prompter: TextPrompter[PrefixType] | None = None,
+    ) -> None:
         """Create a generator for the responses to a function call
 
         Args:
             functions (list[FunctionType]): The functions to use.
-            model (AutoModelForCausalLM | str): The model to use for generation
-            tokenizer (AutoTokenizer | None): The tokenizer to use.
-                Automatically loaded if not provided.
-            prompter (TextPrompter, optional): The prompter to use.
-                Will use CompletionModelPrompter if not provided.
+            model (Model): The model to use.
+            prompter (TextPrompter): The prompter to use.
+                Will use the model's default prompter if not provided.
         """
-        self.constrainer = Constrainer(model, tokenizer)
-        self.prompter: TextPrompter = prompter or CompletionModelPrompter()
+        self.model = model
+        self.constrainer = Constrainer(
+            self.model,
+        )
+        self.prompter: TextPrompter[PrefixType] = (
+            prompter or self.model.default_prompter()
+        )
         self.functions = functions or []
+
+    @classmethod
+    def hf(
+        cls: type[Generator[str]],
+        functions: list[FunctionType],
+        model: AutoModelForCausalLM | str,
+        tokenizer: AutoTokenizer | str,
+        prompter: TextPrompter[str] | None = None,
+    ) -> Generator[str]:
+        """Create a generator for the responses to a function call,
+        using a Huggingface model
+
+        Args:
+            functions (list[FunctionType]): The functions to use.
+            model (AutoTokenizer | str): The model to use.
+            tokenizer (AutoTokenizer | str | None): The tokenizer to use.
+                Defaults to the model's tokenizer if not provided.
+            prompter (TextPrompter): The prompter to use.
+                Will use the model's default prompter if not provided.
+
+        Returns:
+            The generator, using a Huggingface model
+        """
+        hf_model: Model[str] = HuggingfaceModel(model, tokenizer)
+        return cls(functions, hf_model, prompter)
 
     def _begins_enum(self, prefix: str, allowed: list[str]) -> bool:
         """Check if the prefix begins one of the allowed values,
@@ -40,21 +75,22 @@ class Generator:
         Returns:
             bool: Whether the prefix begins one of the allowed values
         """
-        for item in allowed:
-            if item.startswith(prefix) or prefix.startswith(item):
-                return True
-        return False
+        return any(
+            item.startswith(prefix) or prefix.startswith(item) for item in allowed
+        )
 
-    def _generate_allowed_in_enum(self, prefix: str, allowed: list[str]) -> str:
+    def _generate_allowed_in_enum(self, prefix: PrefixType, allowed: list[str]) -> str:
         """Generate one of the values in an enum, for choosing the function
 
         Args:
-            prefix (str): The prefix to use
+            prefix (PrefixType): The prefix to use
             allowed (list[str]): The allowed values
 
         Returns:
             str: The generated value
         """
+        if len(allowed) == 1:
+            return allowed[0]
         generated = self.constrainer.generate(
             prefix,
             lambda generated: (
@@ -68,10 +104,13 @@ class Generator:
         return generated
 
     def _choose_function(self, prompt: str) -> str:
-        """Choose a function to call
+        """Choose a function to call using the LLM
 
         Args:
             prompt (str): The prompt to use
+
+        Returns:
+            str: The function to call
         """
         prefix = self.prompter.prompt(prompt, self.functions)
         return self._generate_allowed_in_enum(
@@ -144,6 +183,11 @@ class Generator:
             prompt (str): The prompt to use
             function_call (str | None): The function call to use.
                 Will be generated if not provided.
+            max_length (int | None): The maximum length of the generated sequence
+            max_new_tokens (int | None): The maximum number of tokens to generate
+
+        Returns:
+            FunctionCall: The generated function call
         """
         function_name = self.choose_function(prompt, function_call)
         arguments = self.generate_arguments(

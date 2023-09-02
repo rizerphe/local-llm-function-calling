@@ -1,24 +1,16 @@
 """A generator for the responses to a function call"""
-from typing import Callable, Iterator
+from __future__ import annotations
+from itertools import count
+from typing import Callable, Generic, TYPE_CHECKING, TypeVar
 
 import json_schema_enforcer
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from .exceptions import InvalidSchemaError, NoValidTokensError
+from .exceptions import SequenceTooLongError
 
-class ConstrainerError(Exception):
-    """An error in the constrainer"""
-
-
-class SequenceTooLong(ConstrainerError):
-    """The sequence is too long to generate"""
-
-
-class NoValidTokens(ConstrainerError):
-    """There are no valid tokens to generate"""
-
-
-class InvalidSchema(ConstrainerError):
-    """The schema is invalid"""
+if TYPE_CHECKING:
+    from .model import Model
+    from local_llm_function_calling.model.common import Generation
 
 
 class JsonSchemaConstraint:
@@ -26,13 +18,16 @@ class JsonSchemaConstraint:
 
     def __init__(
         self, schema: dict, style: json_schema_enforcer.StyleConfig | None = None
-    ):
+    ) -> None:
         """Create a JSON schema constraint
 
         Args:
             schema (dict): The schema to use
             style (json_schema_enforcer.StyleConfig | None): The style to use
                 (specifies indentation, etc.)
+
+        Raises:
+            InvalidSchemaError: The schema is invalid
         """
         if style is None:
             self.style = json_schema_enforcer.StyleConfig(True, 4, True, 0, 0)
@@ -40,7 +35,7 @@ class JsonSchemaConstraint:
             self.style = style
         parser = json_schema_enforcer.parser_for_schema(schema)
         if parser is None:
-            raise InvalidSchema()
+            raise InvalidSchemaError()
         self.parser = parser
 
     def validate(self, text: str) -> json_schema_enforcer.schema.ValidationResult:
@@ -67,70 +62,92 @@ class JsonSchemaConstraint:
         return result.valid, result.end_index is not None
 
 
-class Constrainer:
+PrefixType = TypeVar("PrefixType")
+
+
+class Constrainer(Generic[PrefixType]):
     """Generate text with an LLM in a constrained way"""
 
     def __init__(
         self,
-        model: AutoModelForCausalLM | str,
-        tokenizer: AutoTokenizer | None = None,
-    ):
+        model: Model[PrefixType],
+    ) -> None:
         """Create a constrainer for generating text with an LLM
 
         Args:
-            model (AutoModelForCausalLM | str): The model to use for generation
-            tokenizer (AutoTokenizer | None): The tokenizer to use.
-                Automatically loaded if not provided.
+            model (Model): The model to use
         """
-        if isinstance(model, str):
-            self.model = AutoModelForCausalLM.from_pretrained(model)
-        else:
-            self.model = model
-        if tokenizer is None:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model.name_or_path)
-        else:
-            self.tokenizer = tokenizer
+        self.model = model
 
-    def get_sorted_tokens(self, prompt: str) -> Iterator[str]:
-        """Get the tokens sorted by their likelihood
+    def gen_next_token(
+        self,
+        generation: Generation,
+        constraint: Callable[[str], tuple[bool, bool]],
+    ) -> tuple[bool, int]:
+        """Generate the next token and register it
 
         Args:
-            prompt (str): The prompt to use
+            generation (Generation): The generation to use
+            constraint (Callable[[str], tuple[bool, bool]]):
+                A function that takes a string and returns a tuple of
+                (is_valid, is_complete)
 
         Raises:
-            SequenceTooLong: The input sequence is too long
+            NoValidTokensError: There are no valid tokens to generate
 
-        Yields:
-            str: The tokens sorted by their likelihood
+        Returns:
+            tuple[bool, int]: A tuple, the first element is whether the
+                generation is complete, the second is the number of characters
+                generated so far (or 0 if the generation is complete)
         """
-        inputs = self.tokenizer(prompt, return_tensors="pt")
-        if inputs["input_ids"].shape[1] >= self.model.config.n_positions:
-            raise SequenceTooLong()
-        gen_tokens = self.model.generate(
-            **inputs,
-            output_scores=True,
-            return_dict_in_generate=True,
-            max_new_tokens=1,
-            pad_token_id=self.tokenizer.eos_token_id
-        )
-        tokens_rated = gen_tokens.scores[0].argsort(descending=True)[0]
-        for token in tokens_rated:
-            if token == self.tokenizer.eos_token_id:
-                # Don't yield the EOS token
-                continue
-            yield self.tokenizer.decode(token)
+        try:
+            sorted_tokens = generation.get_sorted_tokens()
+        except SequenceTooLongError:
+            return (True, 0)
+        for token in sorted_tokens:
+            generated = generation.get_generated(token)
+            fit = constraint(generated)
+            if fit[0]:
+                generation.register_token(token)
+                if fit[1]:
+                    return (True, 0)
+                return (False, len(generated))
+        raise NoValidTokensError()
+
+    def advance_generation(
+        self,
+        generation: Generation,
+        constraint: Callable[[str], tuple[bool, bool]],
+        max_len: int | None = None,
+    ) -> bool:
+        """Advance the generation by one token
+
+        Args:
+            generation (Generation): The generation to use
+            constraint (Callable[[str], tuple[bool, bool]]):
+                A function that takes a string and returns a tuple of
+                (is_valid, is_complete)
+            max_len (int | None): The maximum length of the generated string
+
+        Returns:
+            bool: Whether the generation is complete
+        """
+        done, length = self.gen_next_token(generation, constraint)
+        if done:
+            return True
+        return max_len is not None and length >= max_len
 
     def generate(
         self,
-        prefix: str,
+        prefix: PrefixType,
         constraint: Callable[[str], tuple[bool, bool]],
         max_len: int | None = None,
         max_new_tokens: int | None = None,
     ) -> str:
-        """Generate one of the values in an enum, for choosing the function
+        """Generate a string with the LLM
 
         Args:
-            prefix (str): The prefix to use
+            prefix: The prefix to use; the type depends on the model
             constraint (Callable[[str], tuple[bool, bool]]):
                 A function that takes a string and returns a tuple of
                 (is_valid, is_complete)
@@ -138,29 +155,13 @@ class Constrainer:
             max_new_tokens (int | None): The maximum number of tokens to generate
 
         Raises:
-            NoValidTokens: There are no valid tokens to generate
+            NoValidTokensError: There are no valid tokens to generate
 
         Returns:
             str: The generated value
         """
-        generated = ""
-        tokens = 0
-        while True:
-            try:
-                sorted_tokens = self.get_sorted_tokens(prefix)
-            except SequenceTooLong:
-                return generated
-            for token in sorted_tokens:
-                fit = constraint(generated + token)
-                if fit[0]:
-                    generated += token
-                    tokens += 1
-                    if fit[1]:
-                        return generated
-                    break
-            else:  # For loop did not break
-                raise NoValidTokens()
-            if max_len is not None and len(generated) >= max_len:
-                return generated
-            if max_new_tokens is not None and tokens >= max_new_tokens:
-                return generated
+        generation = self.model.start_generation(prefix)
+        for _ in range(max_new_tokens) if max_new_tokens else count():
+            if self.advance_generation(generation, constraint, max_len):
+                break
+        return generation.get_generated()

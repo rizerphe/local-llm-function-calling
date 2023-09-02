@@ -42,7 +42,7 @@ functions = [
 Initialize the generator with the Hugging Face model, tokenizer, and functions:
 
 ```python
-generator = Generator(functions, "gpt2")
+generator = Generator.hf(functions, "gpt2")
 ```
 
 Generate text using a prompt:
@@ -62,3 +62,26 @@ print(function_call)
 ```
 
 </details>
+
+## Llama.cpp
+
+The [meta's llama2 family of models](https://ai.meta.com/llama/) (especially codellama) are so much more suited for this task than most other open source models. Far from everyone has the resources required to run the models as is though. One of the solutions is quantization. Quantized models are smaller and require way fewer resources, but produce lower quality results. This tool supports [llama.cpp](https://github.com/ggerganov/llama.cpp), which allows you to run these quantized models.
+
+To use llama.cpp, you have to install the project with:
+
+```sh
+pip install local-llm-function-calling[llama-cpp]
+```
+
+Then download one of the quantized models (e.g. one of [these](https://huggingface.co/TheBloke/CodeLlama-13B-Instruct-GGUF#provided-files)) and use [LlamaModel](local_llm_function_calling.model.llama.LlamaModel) to load it:
+
+```python
+from local_llm_function_calling.model.llama import LlamaModel
+
+generator = Generator(
+    functions,
+    LlamaModel(
+        "codellama-13b-instruct.Q6_K.gguf"
+    ),
+)
+```

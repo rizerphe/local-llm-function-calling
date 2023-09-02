@@ -8,6 +8,7 @@ You can generate based on a simple JSON schema. Note that this does not support 
 
 ```python
 from local_llm_function_calling import Constrainer, JsonSchemaConstraint
+from local_llm_function_calling.model.huggingface import HuggingfaceModel
 
 
 schema = {
@@ -20,7 +21,7 @@ schema = {
 }
 
 constraint = JsonSchemaConstraint(schema)
-constrainer = Constrainer("gpt2")
+constrainer = Constrainer(HuggingfaceModel("gpt2"))
 raw_json = constrainer.generate("Prefix.\n", constraint, max_len=100)
 truncated_json = raw_json[:constraint.validate(raw_json).end_index]
 ```
@@ -49,7 +50,7 @@ def lowercase_sentence_constraint(text: str):
     # Has to return (is_valid, is_complete)
     return [text.islower(), text.endswith(".")]
 
-constrainer = Constrainer("gpt2")
+constrainer = Constrainer(HuggingfaceModel("gpt2"))
 
 generated = constrainer.generate("Prefix.\n", lowercase_sentence_constraint, max_len=10)
 ```

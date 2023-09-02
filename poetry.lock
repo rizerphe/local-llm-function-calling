@@ -110,6 +110,18 @@ files = [
 ]
 
 [[package]]
+name = "diskcache"
+version = "5.6.3"
+description = "Disk Cache -- Disk and file backed persistent cache."
+category = "main"
+optional = true
+python-versions = ">=3"
+files = [
+    {file = "diskcache-5.6.3-py3-none-any.whl", hash = "sha256:5e31b2d5fbad117cc363ebaf6b689474db18a1f6438bc82358b024abd4c2ca19"},
+    {file = "diskcache-5.6.3.tar.gz", hash = "sha256:2c3a3fa2743d8535d832ec61c2054a1641f41775aa7c556758a109941e33e4fc"},
+]
+
+[[package]]
 name = "filelock"
 version = "3.12.2"
 description = "A platform independent file lock."
@@ -225,15 +237,34 @@ i18n = ["Babel (>=2.7)"]
 
 [[package]]
 name = "json-schema-enforcer"
-version = "0.1.3"
+version = "0.1.4"
 description = "A progressive JSON schema validator"
 category = "main"
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "json_schema_enforcer-0.1.3-py3-none-any.whl", hash = "sha256:f10be130c431ac2f76259e0d5fe2fc1a4b7a02f3ec7e53abcf39443947c860a3"},
-    {file = "json_schema_enforcer-0.1.3.tar.gz", hash = "sha256:f74ec26da41c77244c02c1d27e1a5b29f246a6d0f0be6e66b8975bfc0144b1b6"},
+    {file = "json_schema_enforcer-0.1.4-py3-none-any.whl", hash = "sha256:84bb8d84d4b6923e11e0ad38e11a024c64607cc791aa62c3ef352ae760a5a18d"},
+    {file = "json_schema_enforcer-0.1.4.tar.gz", hash = "sha256:117c267543e1517808a4ea9907d21b0f275fea1f26712d650d66d02fdf1aba50"},
 ]
+
+[[package]]
+name = "llama-cpp-python"
+version = "0.1.83"
+description = "A Python wrapper for llama.cpp"
+category = "main"
+optional = true
+python-versions = ">=3.7"
+files = [
+    {file = "llama_cpp_python-0.1.83.tar.gz", hash = "sha256:9f40656e46a85a3c3427790246e03490bb90202c37cb99732a095ffcb99efe54"},
+]
+
+[package.dependencies]
+diskcache = ">=5.6.1,<6.0.0"
+numpy = ">=1.24.4,<2.0.0"
+typing-extensions = ">=4.7.1,<5.0.0"
+
+[package.extras]
+server = ["fastapi (>=0.100.0)", "pydantic-settings (>=2.0.1)", "sse-starlette (>=1.6.1)", "uvicorn (>=0.23.2,<0.24.0)"]
 
 [[package]]
 name = "markupsafe"
@@ -813,14 +844,14 @@ vision = ["Pillow"]
 
 [[package]]
 name = "typing-extensions"
-version = "4.6.3"
+version = "4.7.1"
 description = "Backported and Experimental Type Hints for Python 3.7+"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "typing_extensions-4.6.3-py3-none-any.whl", hash = "sha256:88a4153d8505aabbb4e13aacb7c486c2b4a33ca3b3f807914a9b4c844c471c26"},
-    {file = "typing_extensions-4.6.3.tar.gz", hash = "sha256:d91d5919357fe7f681a9f2b5b4cb2a5f1ef0a1e9f59c4d8ff0d3491e05c0ffd5"},
+    {file = "typing_extensions-4.7.1-py3-none-any.whl", hash = "sha256:440d5dd3af93b060174bf433bccd69b0babc3b15b1a8dca43789fd7f61514b36"},
+    {file = "typing_extensions-4.7.1.tar.gz", hash = "sha256:b75ddc264f0ba5615db7ba217daeb99701ad295353c45f9e95963337ceeeffb2"},
 ]
 
 [[package]]
@@ -841,7 +872,10 @@ secure = ["certifi", "cryptography (>=1.9)", "idna (>=2.0.0)", "pyopenssl (>=17.
 socks = ["pysocks (>=1.5.6,!=1.5.7,<2.0)"]
 zstd = ["zstandard (>=0.18.0)"]
 
+[extras]
+llama-cpp = ["llama-cpp-python"]
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "a1c96301bd854e41bf3e6b00db6d60970bf032df1b4632f8f7bba32241d70523"
+content-hash = "dfee3d24560b70fe883b5226ffa68f428cc26500427e051ea99d21ca67cf0e8f"

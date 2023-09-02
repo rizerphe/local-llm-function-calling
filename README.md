@@ -49,8 +49,8 @@ functions = [
     }
 ]
 
-# Initialize the generator with the Hugging Face model, tokenizer, and functions
-generator = Generator(functions, "gpt2")
+# Initialize the generator with the Hugging Face model and our functions
+generator = Generator.hf(functions, "gpt2")
 
 # Generate text using a prompt
 function_call = generator.generate("What is the weather like today in Brooklyn?")
@@ -63,6 +63,7 @@ You don't have to use my prompting methods; you can craft your own prompts and y
 
 ```python
 from local_llm_function_calling import Constrainer
+from local_llm_function_calling.model.huggingface import HuggingfaceModel
 
 # Define your own constraint
 # (you can also use local_llm_function_calling.JsonSchemaConstraint)
@@ -71,7 +72,7 @@ def lowercase_sentence_constraint(text: str):
     return [text.islower(), text.endswith(".")]
 
 # Create the constrainer
-constrainer = Constrainer("gpt2")
+constrainer = Constrainer(HuggingfaceModel("gpt2"))
 
 # Generate your text
 generated = constrainer.generate("Prefix.\n", lowercase_sentence_constraint, max_len=10)
