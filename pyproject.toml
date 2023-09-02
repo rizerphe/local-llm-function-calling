@@ -1,14 +1,17 @@
 [tool.poetry]
 name = "local-llm-function-calling"
-version = "0.1.4"
+version = "0.1.5"
 description = "A tool for generating function arguments and choosing what function to call with local LLMs"
 authors = ["rizerphe <44440399+rizerphe@users.noreply.github.com>"]
 readme = "README.md"
 homepage = "https://github.com/rizerphe/local-llm-function-calling"
 documentation = "https://local-llm-function-calling.readthedocs.io/"
-keywords = ["llm", "jsonschema", "huggingface", "transformers", "local"]
+keywords = ["llm", "jsonschema", "huggingface", "transformers", "local", "llama.cpp"]
 license = "MIT"
-packages = [{include = "local_llm_function_calling"}]
+packages = [
+    {include = "local_llm_function_calling"},
+    {include = "local_llm_function_calling/py.typed"},
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
