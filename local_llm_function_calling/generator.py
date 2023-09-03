@@ -10,17 +10,18 @@ if TYPE_CHECKING:
     from .model import Model
     from .prompter import FunctionCall, FunctionType, TextPrompter
 
+PromptType = TypeVar("PromptType")
 PrefixType = TypeVar("PrefixType")
 
 
-class Generator(Generic[PrefixType]):
+class Generator(Generic[PrefixType, PromptType]):
     """Generate the function call based on the schema"""
 
     def __init__(
         self,
         functions: list[FunctionType],
         model: Model[PrefixType],
-        prompter: TextPrompter[PrefixType] | None = None,
+        prompter: TextPrompter[PrefixType, PromptType] | None = None,
     ) -> None:
         """Create a generator for the responses to a function call
 
@@ -34,19 +35,19 @@ class Generator(Generic[PrefixType]):
         self.constrainer = Constrainer(
             self.model,
         )
-        self.prompter: TextPrompter[PrefixType] = (
+        self.prompter: TextPrompter[PrefixType, PromptType] = (
             prompter or self.model.default_prompter()
         )
         self.functions = functions or []
 
     @classmethod
     def hf(
-        cls: type[Generator[str]],
+        cls: type[Generator[str, str]],
         functions: list[FunctionType],
         model: AutoModelForCausalLM | str,
         tokenizer: AutoTokenizer | str,
-        prompter: TextPrompter[str] | None = None,
-    ) -> Generator[str]:
+        prompter: TextPrompter[str, str] | None = None,
+    ) -> Generator[str, str]:
         """Create a generator for the responses to a function call,
         using a Huggingface model
 
@@ -103,11 +104,11 @@ class Generator(Generic[PrefixType]):
                 return item
         return generated
 
-    def _choose_function(self, prompt: str) -> str:
+    def _choose_function(self, prompt: PromptType) -> str:
         """Choose a function to call using the LLM
 
         Args:
-            prompt (str): The prompt to use
+            prompt (PromptType): The prompt to use
 
         Returns:
             str: The function to call
@@ -117,11 +118,13 @@ class Generator(Generic[PrefixType]):
             prefix, [function["name"] for function in self.functions]
         )
 
-    def choose_function(self, prompt: str, function_call: str | None = None) -> str:
+    def choose_function(
+        self, prompt: PromptType, function_call: str | None = None
+    ) -> str:
         """Choose a function to call
 
         Args:
-            prompt (str): The prompt to use
+            prompt (PromptType): The prompt to use
             function_call (str | None): The function to call
                 Will be generated if not provided.
 
@@ -134,7 +137,7 @@ class Generator(Generic[PrefixType]):
 
     def generate_arguments(
         self,
-        prompt: str,
+        prompt: PromptType,
         function_call: str,
         max_length: int | None = None,
         max_new_tokens: int | None = None,
@@ -142,7 +145,7 @@ class Generator(Generic[PrefixType]):
         """Generate the arguments for the function
 
         Args:
-            prompt (str): The prompt to use
+            prompt (PromptType): The prompt to use
             function_call (str): The function to call
             max_length (int | None): The maximum length of the generated sequence
             max_new_tokens (int | None): The maximum number of tokens to generate
@@ -172,7 +175,7 @@ class Generator(Generic[PrefixType]):
 
     def generate(
         self,
-        prompt: str,
+        prompt: PromptType,
         function_call: str | None = None,
         max_length: int | None = None,
         max_new_tokens: int | None = None,

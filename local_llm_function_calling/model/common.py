@@ -1,6 +1,6 @@
 """An abstract definition of a model."""
 from __future__ import annotations
-from typing import Iterator, Protocol, TYPE_CHECKING, TypeVar
+from typing import Any, Iterator, Protocol, TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
     from ..prompter import TextPrompter
@@ -48,6 +48,6 @@ class Model(Protocol[PrefixType]):
         """
         ...
 
-    def default_prompter(self) -> TextPrompter[PrefixType]:
+    def default_prompter(self) -> TextPrompter[PrefixType, Any]:
         """Get the default prompter for this model"""
         ...

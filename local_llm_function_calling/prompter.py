@@ -29,15 +29,16 @@ class FunctionCall(TypedDict):
     parameters: JsonType
 
 
+PromptType_contra = TypeVar("PromptType_contra", contravariant=True)
 PrefixType_co = TypeVar("PrefixType_co", covariant=True)
 
 
-class TextPrompter(Protocol[PrefixType_co]):
+class TextPrompter(Protocol[PrefixType_co, PromptType_contra]):
     """Prompter protocol for function calling with open source models"""
 
     def prompt(
         self,
-        prompt: str,
+        prompt: PromptType_contra,
         functions: list[FunctionType],
         function_to_call: str | None = None,
     ) -> PrefixType_co:
@@ -49,7 +50,7 @@ class TextPrompter(Protocol[PrefixType_co]):
         function.
 
         Args:
-            prompt (str): The natural language part of the prompt
+            prompt: The natural language part of the prompt
             functions (list[FunctionType]): The functions to choose from
             function_to_call (str | None): The function to call.
                 When None, the prompt should be to select the function to call.

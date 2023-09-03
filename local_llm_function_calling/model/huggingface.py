@@ -111,7 +111,7 @@ class HuggingfaceModel:
         """
         return HuggingfaceGeneration(self.model, self.tokenizer, prefix)
 
-    def default_prompter(self) -> TextPrompter[str]:
+    def default_prompter(self) -> TextPrompter[str, str]:
         """Get the default prompter for this model
 
         Returns:
