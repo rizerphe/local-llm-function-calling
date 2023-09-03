@@ -70,7 +70,9 @@ class HuggingfaceGeneration:
         Returns:
             str: The generated sequence
         """
-        return self.tokenizer.decode(self.generated + [candidate] if candidate else [])
+        return self.tokenizer.decode(
+            self.generated + ([candidate] if candidate else [])
+        )
 
 
 class HuggingfaceModel:
