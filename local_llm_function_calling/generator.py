@@ -42,12 +42,12 @@ class Generator(Generic[PrefixType, PromptType]):
 
     @classmethod
     def hf(
-        cls: type[Generator[str, str]],
+        cls: type[Generator[str, PromptType]],
         functions: list[FunctionType],
         model: AutoModelForCausalLM | str,
         tokenizer: AutoTokenizer | str | None = None,
-        prompter: TextPrompter[str, str] | None = None,
-    ) -> Generator[str, str]:
+        prompter: TextPrompter[str, PromptType] | None = None,
+    ) -> Generator[str, PromptType]:
         """Create a generator for the responses to a function call,
         using a Huggingface model
 
@@ -183,7 +183,7 @@ class Generator(Generic[PrefixType, PromptType]):
         """Generate the function call
 
         Args:
-            prompt (str): The prompt to use
+            prompt (PromptType): The prompt to use
             function_call (str | None): The function call to use.
                 Will be generated if not provided.
             max_length (int | None): The maximum length of the generated sequence
