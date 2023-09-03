@@ -45,7 +45,7 @@ class Generator(Generic[PrefixType, PromptType]):
         cls: type[Generator[str, str]],
         functions: list[FunctionType],
         model: AutoModelForCausalLM | str,
-        tokenizer: AutoTokenizer | str,
+        tokenizer: AutoTokenizer | str | None = None,
         prompter: TextPrompter[str, str] | None = None,
     ) -> Generator[str, str]:
         """Create a generator for the responses to a function call,
