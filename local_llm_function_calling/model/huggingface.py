@@ -50,6 +50,10 @@ class HuggingfaceGeneration:
             if token == self.tokenizer.eos_token_id:
                 # Don't yield the EOS token
                 continue
+            # This is a very hacky way to get rid of all weird tokens;
+            # TODO: find a better way to do this
+            if self.get_generated(token) == self.get_generated():
+                continue
             yield token
 
     def register_token(self, token: int) -> None:
@@ -71,7 +75,8 @@ class HuggingfaceGeneration:
             str: The generated sequence
         """
         return self.tokenizer.decode(
-            self.generated + ([candidate] if candidate else [])
+            self.generated + ([candidate] if candidate else []),
+            skip_special_tokens=True,
         )
 
 
