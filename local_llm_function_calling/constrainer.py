@@ -62,6 +62,62 @@ class JsonSchemaConstraint:
         return result.valid, result.end_index is not None
 
 
+class EnumConstraint:
+    """An enum constraint, allowing only a set of values"""
+
+    def __init__(self, values: list[str], full_generation: bool = True) -> None:
+        """Create an enum constraint
+
+        Args:
+            values (list[str]): The values to allow
+            full_generation (bool): Whether to require full generation,
+                or just that the generated value is a prefix of one of the
+                values
+        """
+        self.values = values
+        self.full_generation = full_generation
+
+        if any(
+            (value.startswith(prefix) and value != prefix)
+            for value in values
+            for prefix in values
+        ):
+            raise ValueError("Values must not be prefixes of each other")
+
+    def __call__(self, text: str) -> tuple[bool, bool]:
+        """Validate the text against the schema
+
+        Args:
+            text (str): The text to validate
+
+        Returns:
+            tuple[bool, bool]: A tuple of (is_valid, is_complete)
+        """
+        fitting = self.fitting(text)
+        is_valid = any(fitting)
+        is_complete = (
+            any(text.startswith(value) for value in self.values)
+            if self.full_generation
+            else (len(fitting) == 1)
+        )
+        return is_valid, is_complete
+
+    def fitting(self, text: str) -> list[str]:
+        """Get the fitting values for the text
+
+        Args:
+            text (str): The text to check
+
+        Returns:
+            list[str]: The fitting values
+        """
+        return [
+            value
+            for value in self.values
+            if value.startswith(text) or text.startswith(value)
+        ]
+
+
 PrefixType = TypeVar("PrefixType")
 
 
