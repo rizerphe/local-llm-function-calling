@@ -26,7 +26,7 @@ class FunctionCall(TypedDict):
     """Function call"""
 
     name: str
-    parameters: JsonType
+    parameters: str
 
 
 PromptType_contra = TypeVar("PromptType_contra", contravariant=True)
