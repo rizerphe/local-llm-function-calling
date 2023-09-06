@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import Generic, TYPE_CHECKING, TypeVar
 
-from .constrainer import Constrainer, JsonSchemaConstraint
+from .constrainer import Constrainer, EnumConstraint, JsonSchemaConstraint
 from .model.huggingface import HuggingfaceModel
 
 if TYPE_CHECKING:
@@ -65,21 +65,6 @@ class Generator(Generic[PrefixType, PromptType]):
         hf_model: Model[str] = HuggingfaceModel(model, tokenizer)
         return cls(functions, hf_model, prompter)
 
-    def _begins_enum(self, prefix: str, allowed: list[str]) -> bool:
-        """Check if the prefix begins one of the allowed values,
-        for choosing the function to call
-
-        Args:
-            prefix (str): The prefix to check
-            allowed (list[str]): The allowed values
-
-        Returns:
-            bool: Whether the prefix begins one of the allowed values
-        """
-        return any(
-            item.startswith(prefix) or prefix.startswith(item) for item in allowed
-        )
-
     def _generate_allowed_in_enum(self, prefix: PrefixType, allowed: list[str]) -> str:
         """Generate one of the values in an enum, for choosing the function
 
@@ -92,34 +77,37 @@ class Generator(Generic[PrefixType, PromptType]):
         """
         if len(allowed) == 1:
             return allowed[0]
+        constraint = EnumConstraint(allowed)
         generated = self.constrainer.generate(
             prefix,
-            lambda generated: (
-                self._begins_enum(generated, allowed),
-                any(item.startswith(generated) for item in allowed),
-            ),
+            constraint,
         )
-        for item in allowed:
-            if item.startswith(generated):
-                return item
-        return generated
+        fitting = constraint.fitting(generated)
+        return fitting[0] if fitting else generated
 
-    def _choose_function(self, prompt: PromptType) -> str:
+    def _choose_function(self, prompt: PromptType, suffix: str = "") -> str:
         """Choose a function to call using the LLM
 
         Args:
             prompt (PromptType): The prompt to use
+            suffix (str): The suffix to terminate,
+                in order to begin prefix clashes
 
         Returns:
             str: The function to call
         """
         prefix = self.prompter.prompt(prompt, self.functions)
-        return self._generate_allowed_in_enum(
-            prefix, [function["name"] for function in self.functions]
-        )
+        suffix_map = {
+            function["name"] + suffix: function["name"] for function in self.functions
+        }
+        return suffix_map[
+            self._generate_allowed_in_enum(
+                prefix, [function["name"] + suffix for function in self.functions]
+            )
+        ]
 
     def choose_function(
-        self, prompt: PromptType, function_call: str | None = None
+        self, prompt: PromptType, function_call: str | None = None, suffix: str = ""
     ) -> str:
         """Choose a function to call
 
@@ -127,12 +115,14 @@ class Generator(Generic[PrefixType, PromptType]):
             prompt (PromptType): The prompt to use
             function_call (str | None): The function to call
                 Will be generated if not provided.
+            suffix (str): The suffix to terminate,
+                in order to begin prefix clashes
 
         Returns:
             str: The function to call
         """
         if function_call is None:
-            return self._choose_function(prompt)
+            return self._choose_function(prompt, suffix)
         return function_call
 
     def generate_arguments(
@@ -179,6 +169,7 @@ class Generator(Generic[PrefixType, PromptType]):
         function_call: str | None = None,
         max_length: int | None = None,
         max_new_tokens: int | None = None,
+        suffix: str = "",
     ) -> FunctionCall:
         """Generate the function call
 
@@ -188,11 +179,13 @@ class Generator(Generic[PrefixType, PromptType]):
                 Will be generated if not provided.
             max_length (int | None): The maximum length of the generated sequence
             max_new_tokens (int | None): The maximum number of tokens to generate
+            suffix (str): The suffix to terminate,
+                in order to begin prefix clashes
 
         Returns:
             FunctionCall: The generated function call
         """
-        function_name = self.choose_function(prompt, function_call)
+        function_name = self.choose_function(prompt, function_call, suffix)
         arguments = self.generate_arguments(
             prompt, function_name, max_new_tokens, max_length
         )
