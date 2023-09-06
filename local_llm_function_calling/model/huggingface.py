@@ -12,18 +12,38 @@ class HuggingfaceGeneration:
     """A single generation sequence with a huggingface model"""
 
     def __init__(
-        self, model: AutoModelForCausalLM, tokenizer: AutoTokenizer, prefix: str
+        self,
+        model: AutoModelForCausalLM,
+        tokenizer: AutoTokenizer,
+        prefix: str | list[str | int],
     ) -> None:
         """Create a generation sequence
 
         Args:
             model (AutoModelForCausalLM): The model to use for generation
             tokenizer (AutoTokenizer): The tokenizer to use
-            prefix (str): The generation prefix
+            prefix (str | list[str | int]): The generation prefix
         """
         self.model = model
         self.tokenizer = tokenizer
-        self.inputs = self.tokenizer(prefix, return_tensors="pt")["input_ids"]
+        self.inputs = (
+            self.tokenizer(prefix, return_tensors="pt")["input_ids"]
+            if isinstance(prefix, str)
+            else torch.cat(
+                [
+                    self.tokenizer(
+                        item,
+                        return_tensors="pt",
+                        add_special_tokens=False,
+                        split_special_tokens=False,
+                    )["input_ids"]
+                    if isinstance(item, str)
+                    else torch.tensor([[item]])
+                    for item in prefix
+                ],
+                dim=-1,
+            )
+        )
         self.generated: list[int] = []
         self.candidates: torch.Tensor | None = None
 
@@ -106,11 +126,11 @@ class HuggingfaceModel:
         else:
             self.tokenizer = tokenizer
 
-    def start_generation(self, prefix: str) -> HuggingfaceGeneration:
+    def start_generation(self, prefix: str | list[str | int]) -> HuggingfaceGeneration:
         """Start a new generation sequence
 
         Args:
-            prefix (str): The generation prefix
+            prefix (str | list[str | int]): The generation prefix
 
         Returns:
             HuggingfaceGeneration: The generation sequence initialized with the
