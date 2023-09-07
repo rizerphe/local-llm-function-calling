@@ -1,11 +1,15 @@
 """A container for huggingface models specifically"""
-from typing import Iterator
+from typing import Iterator, TypeVar
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from ..exceptions import SequenceTooLongError
 from ..prompter import CompletionModelPrompter, TextPrompter
+
+PrefixType_contra = TypeVar(
+    "PrefixType_contra", str, list[str | int], contravariant=True
+)
 
 
 class HuggingfaceGeneration:
@@ -126,11 +130,12 @@ class HuggingfaceModel:
         else:
             self.tokenizer = tokenizer
 
-    def start_generation(self, prefix: str | list[str | int]) -> HuggingfaceGeneration:
+    def start_generation(self, prefix: PrefixType_contra) -> HuggingfaceGeneration:
         """Start a new generation sequence
 
         Args:
-            prefix (str | list[str | int]): The generation prefix
+            prefix: The generation prefix, either as a string or as a list of
+                strings/integers; token IDs and string to be automatically tokenized
 
         Returns:
             HuggingfaceGeneration: The generation sequence initialized with the
