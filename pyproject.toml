@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "local-llm-function-calling"
-version = "0.1.14"
+version = "0.1.15"
 description = "A tool for generating function arguments and choosing what function to call with local LLMs"
 authors = ["rizerphe <44440399+rizerphe@users.noreply.github.com>"]
 readme = "README.md"

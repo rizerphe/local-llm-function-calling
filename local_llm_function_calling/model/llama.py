@@ -175,7 +175,7 @@ class LlamaGeneration:
             # TODO: fix json-schema-enforcer etc to allow for generation of
             # sequences that can't be decoded
             try:
-                if self.model.detokenize([token_id]).decode("utf-8"):
+                if self.get_generated() != self.get_generated(token_id):
                     yield token_id
             except UnicodeDecodeError:
                 continue
