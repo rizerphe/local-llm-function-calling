@@ -197,7 +197,7 @@ class LlamaGeneration:
             str: The generated sequence
         """
         return self.model.detokenize(
-            [1] + self.generated + ([candidate] if candidate else [])
+            self.generated + ([candidate] if candidate else [])
         ).decode("utf-8")
 
 
