@@ -153,7 +153,7 @@ class LlamaGeneration:
         self.generated: list[int] = []
         self.prompt: list[int] = sum(
             (
-                [item] if isinstance(item, int) else self.model.tokenize(item)
+                [item] if isinstance(item, int) else self.model.tokenize(item, False)
                 for item in prefix
             ),
             [],
@@ -172,10 +172,8 @@ class LlamaGeneration:
         for token_id, _ in sorted(
             enumerate(probabilities), key=lambda item: item[1], reverse=True
         ):
-            # TODO: fix json-schema-enforcer etc to allow for generation of
-            # sequences that can't be decoded
             try:
-                if self.get_generated() != self.get_generated(token_id):
+                if self.get_generated(token_id):
                     yield token_id
             except UnicodeDecodeError:
                 continue
